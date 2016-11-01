@@ -1,6 +1,7 @@
 import numpy as np
 import scipy
 import obspy
+import math
 
 class seisproc:
 # A series function for SAC seismic data processing
@@ -69,5 +70,24 @@ class seisproc:
 
     def whiten(tr):
     # Spectral whitening
-        tr_spec=spec
+        delta=round(tr.stats['delta'],6)
+        freq_s=np.fft.rfft(tr.data)
+        Ampart=abs(freq_s)
+        freq_s=freq_s/Ampart
+        time_s=np.fft.irfft(freq_s)
+        tr.data=time_s
+
+        return tr
+
+
+    def rotate(trN,trE,theta):
+    # rotate horizontal components of seismogram, theta is counterclockwise rotate angle.
+        rad=math.radians(theta)
+        N_y=trN.data*math.cos(rad)-trE.data*math.sin(rad)
+        E_x=trN.data*math.sin(rad)+trE.data*math.cos(rad)
+
+        trN.data=N_y
+        trE.data=E_x
+
+        return trN,trE
 
