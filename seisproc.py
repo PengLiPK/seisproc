@@ -1,4 +1,5 @@
 import numpy as np
+import scipy
 import obspy
 
 class seisproc:
@@ -44,12 +45,15 @@ class seisproc:
         return pz
 
 
-    def spec(tr,start_time,end_time):
+    def spec(tr,start_time=0,end_time=0):
     # Calculate spectrum of a time series, return amplitude an phase
         delta=round(tr.stats['delta'],6)
         fq=round(1.0/delta)
 
-        signal=tr.data[start_time * fq : end_time * fq]
+        if start_time == 0 and end_time ==0:
+            signal=tr.data
+        else:
+            signal=tr.data[start_time * fq : end_time * fq]
         freq_signal=np.fft.rfft(signal)
         freqs=np.fft.rfftfreq(len(signal),d=delta)
         Ampart=abs(freq_signal)
@@ -61,4 +65,9 @@ class seisproc:
         spec_data['Pha']=Phpart
 
         return spec_data
+
+
+    def whiten(tr):
+    # Spectral whitening
+        tr_spec=spec
 
