@@ -74,20 +74,20 @@ class seisproc:
         freq_s=np.fft.rfft(tr.data)
         Ampart=abs(freq_s)
         freq_s=freq_s/Ampart
-        time_s=np.fft.irfft(freq_s)
-        tr.data=time_s
+        time_s=tr
+        time_s.data=np.fft.irfft(freq_s)
 
-        return tr
+        return time_s
 
 
     def rotate(trN,trE,theta):
     # rotate horizontal components of seismogram, theta is counterclockwise rotate angle.
         rad=math.radians(theta)
-        N_y=trN.data*math.cos(rad)-trE.data*math.sin(rad)
-        E_x=trN.data*math.sin(rad)+trE.data*math.cos(rad)
 
-        trN.data=N_y
-        trE.data=E_x
+        N_y=trN
+        E_x=trE
+        N_y.data=trN.data*math.cos(rad)-trE.data*math.sin(rad)
+        E_x.data=trN.data*math.sin(rad)+trE.data*math.cos(rad)
 
-        return trN,trE
+        return N_y,E_x
 
