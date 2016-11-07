@@ -68,14 +68,30 @@ class seisproc:
         return spec_data
 
 
-    def whiten(tr):
+    def whiten(tr,minf,maxf):
     # Spectral whitening
         delta=round(tr.stats['delta'],6)
         freq_s=np.fft.rfft(tr.data)
-        Ampart=abs(freq_s)
-        freq_s=freq_s/Ampart
-        time_s=tr
-        time_s.data=np.fft.irfft(freq_s)
+        freqs=np.fft.rfftfreq(len(tr.data),d=delta)
+
+        Phpart=np.angle(freq_s,deg=False)
+
+        alpha=0.5
+        N=(maxf-minf)/((freqs[1]-freqs[0])*(1-alpha))
+        window=scipy.signal.tukey(N,alpha=alpha)
+        Ampart=np.array([window[1] for x in range(len(Phpart))])
+        n1=minf/(freqs[1]-freqs[0])
+        n2=alpha*(N-1)/2
+        if n1 > n2:
+            w_end=min((len(Ampart)-n1+n2),len(window))
+            Ampart[(n1-n2):(w_end+n1-n2)]=window[0:w_end]
+        else:
+            w_end=min(len(Ampart),(len(window)-n2+n1))
+            Ampart[0:w_end]=window[(n2-n1):(w_end+n2-n1)]
+
+        freq_s_n=Ampart*np.cos(Phpart) + Ampart*np.sin(Phpart)*1j
+        time_s=tr.copy()
+        time_s.data=np.fft.irfft(freq_s_n)
 
         return time_s
 
@@ -84,8 +100,8 @@ class seisproc:
     # rotate horizontal components of seismogram, theta is counterclockwise rotate angle.
         rad=math.radians(theta)
 
-        N_y=trN
-        E_x=trE
+        N_y=trN.copy()
+        E_x=trE.copy()
         N_y.data=trN.data*math.cos(rad)-trE.data*math.sin(rad)
         E_x.data=trN.data*math.sin(rad)+trE.data*math.cos(rad)
 
