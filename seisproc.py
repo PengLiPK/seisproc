@@ -68,7 +68,7 @@ class seisproc:
         return spec_data
 
 
-    def whiten(tr,minf,maxf):
+    def whiten(tr,minf1,minf2,maxf1,maxf2):
     # Spectral whitening
         delta=round(tr.stats['delta'],6)
         freq_s=np.fft.rfft(tr.data)
@@ -76,18 +76,22 @@ class seisproc:
 
         Phpart=np.angle(freq_s,deg=False)
 
-        alpha=0.5
-        N=(maxf-minf)/((freqs[1]-freqs[0])*(1-alpha))
-        window=scipy.signal.tukey(N,alpha=alpha)
-        Ampart=np.array([window[1] for x in range(len(Phpart))])
-        n1=minf/(freqs[1]-freqs[0])
-        n2=alpha*(N-1)/2
-        if n1 > n2:
-            w_end=min((len(Ampart)-n1+n2),len(window))
-            Ampart[(n1-n2):(w_end+n1-n2)]=window[0:w_end]
-        else:
-            w_end=min(len(Ampart),(len(window)-n2+n1))
-            Ampart[0:w_end]=window[(n2-n1):(w_end+n2-n1)]
+        # Build windows for whitening
+        df=(freqs[1]-freqs[0])
+        tp=np.array([0 for x in range(len(Phpart))])
+        h1=int((minf2-minf1)/df)
+        tp1=scipy.signal.hanning(h1)[0:int(h1/2)]
+        h2=int((minf2-minf1)/df)
+        tp2=scipy.signal.hanning(h2)[int(h1/2):h2]
+        t1=int(minf1/df)
+        t2=t1+len(tp1)
+        t3=t2+int((maxf1-minf2)/df)
+        t4=t3+len(tp2)
+        tp[t1:t2]=tp1
+        tp[t2:t3]=1.0
+        tp[t3:t4]=tp2
+
+        Ampart=tp
 
         freq_s_n=Ampart*np.cos(Phpart) + Ampart*np.sin(Phpart)*1j
         time_s=tr.copy()
