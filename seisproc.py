@@ -6,6 +6,7 @@ import math
 class seisproc:
 # A series function for SAC seismic data processing
 
+
     def readpz(fname):
     # This function read SAC polezero files and return polezero to a dictionary.
         f = open(fname, "r")
@@ -67,6 +68,60 @@ class seisproc:
 
         return spec_data
 
+    def smooth(x,window_len=10000,window='hanning'):
+    # Smooth based on the convolution of a scaled window with the signal.
+        if x.ndim != 1:
+            raise ValueError("smooth only accepts 1 dimension arrays.")
+
+        if x.size < window_len:
+            raise ValueError("Input vector needs to be bigger than window size.")
+
+        if window_len<3:
+            return x
+
+        if not window in ['flat', 'hanning', 'hamming', 'bartlett', 'blackman']:
+            raise ValueError("Window is on of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'")
+
+        s=np.r_[x[window_len-1:0:-1],x,x[-1:-window_len:-1]]
+        if window == 'flat': #moving average
+            w=np.ones(window_len,'d')
+        else:
+            w=eval('np.'+window+'(window_len)')
+
+        y=np.convolve(w/w.sum(),s,mode='valid')
+        y_sm=y[int(window_len/2):int(window_len/2)+len(x)]
+        return y_sm
+
+    def convsm(x,nx):
+    # Smooth based on the convolutional smoother
+        Nx=len(x)
+
+        # Pad vector
+        Ap=np.r_[x[nx-1:0:-1],x,x[-1:-nx:-1]]
+
+        # Apply smoothing filter
+        ap_f=np.fft.rfft(Ap)
+
+        # Pad filter
+        Nxp=len(ap_f)
+        Ktx=np.zeros(Nxp)
+        kx=np.array([x for x in range(Nxp)])
+
+        # Build smoothing filter
+        a=2*nx+1
+        Ktx=(1/a)* \
+            np.sin(0.5*a*(kx-int(Nxp+2)/2)*(2*np.pi/Nxp))/ \
+            np.sin(0.5*(kx-int(Nxp+2)/2)*(2*np.pi/Nxp))
+
+
+        print(Nx,len(Ap),len(Ktx))
+        print(len(ap_f),"ap_f")
+        ap_if=np.fft.irfft(ap_f*Ktx)
+        ap_out=ap_if[nx:nx+Nx]
+
+        return ap_out
+
+
 
     def whiten(tr,minf1,minf2,maxf1,maxf2):
     # Spectral whitening
@@ -91,13 +146,16 @@ class seisproc:
         tp[t2:t3]=1.0
         tp[t3:t4]=tp2
 
-        Ampart=tp
-
-        freq_s_n=Ampart*np.cos(Phpart) + Ampart*np.sin(Phpart)*1j
+        print(len(freq_s),len(tp))
+        #print(len(seisproc.convsm(abs(freq_s),2000)))
+        #freq_s_n=(freq_s/seisproc.smooth(abs(freq_s),2000))*tp
+        #print(len(seisproc.smooth(abs(freq_s))))
+        #freq_s_n=(freq_s/seisproc.smooth(abs(freq_s)))*tp
+        freq_s_n=tp*np.cos(Phpart) + tp*np.sin(Phpart)*1j
         time_s=tr.copy()
         time_s.data=np.fft.irfft(freq_s_n)
 
-        return time_s
+        return time_s,freq_s_n
 
 
     def rotate(trN,trE,theta):
